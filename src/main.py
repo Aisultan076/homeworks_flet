@@ -1,55 +1,63 @@
+# main.py
 import flet as ft
+from database import Database
+
+db = Database()
+db.create_tables()
 
 def main(page: ft.Page):
-    page.title = "Ваши расходы"
-    page.data = 0
+    page.title = "Учет расходов"
+    page.horizontal_alignment = ft.MainAxisAlignment.CENTER
+    page.scroll = ft.ScrollMode.AUTO
 
+    name_input = ft.TextField(label="Название расхода", width=250)
+    amount_input = ft.TextField(label="Сумма расхода(сом)", width=200, keyboard_type=ft.KeyboardType.NUMBER)
+    add_button = ft.ElevatedButton(text="Добавить")
 
-    name_input = ft.TextField(label="Название расхода")
-    amount_input = ft.TextField(label="Сумма расхода(сом)", keyboard_type="number")
+    total_text = ft.Text()
+    history_column = ft.Column()
 
-
-    total_text = ft.Text(value="Общая сумма: 0 сом", size=20, weight="bold")
-
-
-    expenses_list = ft.Column()
-
+    def load_expenses():
+        expenses = db.get_expenses()
+        total = db.get_total()
+        total_text.value = f"Общая сумма расходов: {total} сом"
+        history_column.controls.clear()
+        for item in expenses:
+            history_column.controls.append(
+                ft.Text(f"Расход: {item[1]}/Сумма: {item[2]} сом")
+            )
+        page.update()
 
     def add_expense(e):
-        name = name_input.value
+        name = name_input.value.strip()
         try:
             amount = float(amount_input.value)
         except ValueError:
-            page.snack_bar = ft.SnackBar(ft.Text("Введите корректную сумму!"))
+            page.snack_bar = ft.SnackBar(ft.Text("Введите корректную сумму"))
             page.snack_bar.open = True
             page.update()
             return
 
-
-        expenses_list.controls.append(ft.Text(f"{name}: {amount}"))
-
-
-        page.data += amount
-        total_text.value = f"Общая сумма расходов: {page.data} сом"
-
-
-        name_input.value = ""
-        amount_input.value = ""
-
+        if name and amount > 0:
+            db.add_expense(name, amount)
+            name_input.value = ""
+            amount_input.value = ""
+            load_expenses()
+        else:
+            page.snack_bar = ft.SnackBar(ft.Text("Пожалуйста, заполните все поля корректно"))
+            page.snack_bar.open = True
 
         page.update()
 
-
-    add_button = ft.ElevatedButton(text="Добавить", on_click=add_expense)
-
+    add_button.on_click = add_expense
 
     page.add(
-        name_input,
-        amount_input,
-        add_button,
+        ft.Text("Ваши расходы", size=30, weight="bold"),
+        ft.Row([name_input, amount_input, add_button]),
         total_text,
-        ft.Text("Список расходов:"),
-        expenses_list,
+        history_column,
     )
+
+    load_expenses()
 
 ft.app(target=main)
