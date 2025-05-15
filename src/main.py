@@ -1,4 +1,3 @@
-# main.py
 import flet as ft
 from database import Database
 
