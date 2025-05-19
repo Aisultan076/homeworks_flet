@@ -2,61 +2,56 @@ import flet as ft
 from database import Database
 
 db = Database()
-db.create_tables()
 
 def main(page: ft.Page):
-    page.title = "Учет расходов"
-    page.horizontal_alignment = ft.MainAxisAlignment.CENTER
-    page.scroll = ft.ScrollMode.AUTO
+    page.title = "Expanses"
+    page.scroll = True
 
-    name_input = ft.TextField(label="Название расхода", width=250)
-    amount_input = ft.TextField(label="Сумма расхода(сом)", width=200, keyboard_type=ft.KeyboardType.NUMBER)
-    add_button = ft.ElevatedButton(text="Добавить")
+    title_field = ft.TextField(label="Название расхода", width=300, expand=True)
+    amount_field = ft.TextField(label="Сумма расхода", width=150, expand=True, keyboard_type=ft.KeyboardType.NUMBER)
 
-    total_text = ft.Text()
-    history_column = ft.Column()
+    total_text = ft.Text(value=f"Общая сумма расходов: {db.get_total_amount()} ", size=20, weight=ft.FontWeight.BOLD)
 
-    def load_expenses():
-        expenses = db.get_expenses()
-        total = db.get_total()
-        total_text.value = f"Общая сумма расходов: {total} сом"
-        history_column.controls.clear()
-        for item in expenses:
-            history_column.controls.append(
-                ft.Text(f"Расход: {item[1]}/Сумма: {item[2]} сом")
-            )
+    expenses_list = ft.Column()
+
+    def update_expenses_list():
+        expenses_list.controls.clear()
+        for title, amount in db.get_all_expenses():
+            expenses_list.controls.append(ft.Text(f"{title}: {amount:.2f} "))
+        total_text.value = f"Общая сумма расходов: {db.get_total_amount():.2f} "
         page.update()
 
-    def add_expense(e):
-        name = name_input.value.strip()
+    def add_expense_clicked(e):
+        title = title_field.value.strip()
         try:
-            amount = float(amount_input.value)
+            amount = float(amount_field.value.strip())
         except ValueError:
-            page.snack_bar = ft.SnackBar(ft.Text("Введите корректную сумму"))
-            page.snack_bar.open = True
+            amount_field.error_text = "Введите число"
             page.update()
             return
 
-        if name and amount > 0:
-            db.add_expense(name, amount)
-            name_input.value = ""
-            amount_input.value = ""
-            load_expenses()
-        else:
-            page.snack_bar = ft.SnackBar(ft.Text("Пожалуйста, заполните все поля корректно"))
-            page.snack_bar.open = True
+        if not title:
+            title_field.error_text = "Поле обязательно"
+            page.update()
+            return
 
-        page.update()
+        title_field.error_text = ""
+        amount_field.error_text = ""
 
-    add_button.on_click = add_expense
+        db.add_expense(title, amount)
+        title_field.value = ""
+        amount_field.value = ""
+        update_expenses_list()
+
+    add_button = ft.ElevatedButton("Добавить", on_click=add_expense_clicked)
 
     page.add(
         ft.Text("Ваши расходы", size=30, weight="bold"),
-        ft.Row([name_input, amount_input, add_button]),
+        ft.Row([title_field, amount_field, add_button]),
         total_text,
-        history_column,
+        expenses_list,
     )
 
-    load_expenses()
+    update_expenses_list()
 
 ft.app(target=main)
